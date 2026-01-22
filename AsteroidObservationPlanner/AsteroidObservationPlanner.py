@@ -20,30 +20,26 @@ ASTEROID_NAMES = {}
 # ============================================================
 
 LOCATION = {
-    'lat': 0.0,     # degrees
-    'lon': 0.0,     # degrees East
-    'elevation': 440    # meters
+    'lat': -35.09,     # degrees
+    'lon': 138.72,     # degrees East
+    'elevation': 480    # meters
 }
 
 # Time Zone
 TZ = timezone(timedelta(hours=10.5))
 
-# Observation nights (UTC mid-session) - FIXED TIMES
+# Observation nights (Time is UTC mid-session) 
 NIGHTS = {
-    "2026-01-03": Time("2026-01-03 12:30").jd,  # 11pm local
-    "2026-01-03": Time("2026-01-03 12:30").jd   # 11pm local
+    "2026-01-22": Time("2026-01-22 11:30").jd,  # 10pm Adelaide
+    "2026-01-23": Time("2026-01-23 11:30").jd   # 10pm Adelaide
 }
-
-# Target culmination time (local 11pm ≈ 12:30 UTC)
-CULMINATION_UTC = Time("2025-12-31 12:30")
-MAX_HA_HOURS = 2.0   # ±2 hours from transit peak
 
 # Magnitude limits
 MAG_MIN = 16.0
-MAG_MAX = 19.0
+MAG_MAX = 17.0
 
 # Desired final count
-TARGET_COUNT = 7
+TARGET_COUNT = 6
 
 # Batch size for processing - best not to change this
 BATCH_SIZE = 100
@@ -118,8 +114,8 @@ def compute_transit_time(ra_deg, date_utc):
     """
     ra = Angle(ra_deg * u.deg).to(u.hourangle)
 
-    # Search window: 10pm–2am local ≈ 11:30–15:30 UTC
-    t0 = Time(date_utc.iso.split()[0] + " 11:30")
+    # Search window: 10pm–2am local ≈ 10:30–14:30 UTC
+    t0 = Time(date_utc.iso.split()[0] + " 10:30")
     times = t0 + TimeDelta(np.linspace(0, 4, 241) * u.hour)
 
     lsts = times.sidereal_time(
