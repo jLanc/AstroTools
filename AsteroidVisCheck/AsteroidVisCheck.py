@@ -18,10 +18,10 @@ import astropy.units as u
 # ============================================================
 
 LOCATION = {
-    'lat': 00.00,           # degrees
-    'lon': 00.00,           # degrees East
+    'lat': -35.01,           # degrees
+    'lon': 138.72,           # degrees East
     'elevation': 441,       # meters
-    'utc_offset': 10.5      # hours (e.g., 10.5 for ACDT, -5 for EST, 0 for UTC)
+    'utc_offset': 10.5      # hours (e.g. 10.5 for ACDT, -5 for EST, 0 for UTC)
 }
 
 # Telescopius horizon mask (AZ°, ALT°)
@@ -192,7 +192,7 @@ def calculate_asteroid_position(asteroid_id):
     print(f"  Magnitude:   V = {mag:.1f}")
     print(f"  Altitude:    {alt:.1f}°")
     print(f"  Azimuth:     {az:.1f}°")
-    print(f"  Status:      {'✓ VISIBLE' if is_visible else '✗ Below horizon'}")
+    print(f"  Status:      {'VISIBLE' if is_visible else 'Below horizon'}")
     if not is_visible:
         print(f"               (needs {min_alt:.1f}° altitude at this azimuth)")
     

@@ -38,7 +38,7 @@ CURRENT POSITION:
   Magnitude:   V = 17.1
   Altitude:    15.9°
   Azimuth:     68.7°
-  Status:      ✗ Below horizon
+  Status:      Below horizon
                (needs 32.0° altitude at this azimuth)
 
 ======================================================================
