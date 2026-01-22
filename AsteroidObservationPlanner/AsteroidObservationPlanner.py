@@ -20,8 +20,8 @@ ASTEROID_NAMES = {}
 # ============================================================
 
 LOCATION = {
-    'lat': -35.09,     # degrees
-    'lon': 138.72,     # degrees East
+    'lat': 0,     # degrees
+    'lon': 0,     # degrees East
     'elevation': 480    # meters
 }
 
