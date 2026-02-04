@@ -30,13 +30,17 @@ TZ = timezone(timedelta(hours=10.5))
 
 # Observation nights (Time is UTC mid-session) 
 NIGHTS = {
-    "2026-01-22": Time("2026-01-22 11:30").jd,  # 10pm Adelaide
-    "2026-01-23": Time("2026-01-23 11:30").jd   # 10pm Adelaide
+    "2026-02-4": Time("2026-01-25 11:30").jd,
+    "2026-02-5": Time("2026-01-26 11:30").jd   
 }
 
-# Magnitude limits
-MAG_MIN = 16.0
-MAG_MAX = 17.0
+# MPC OBS code submission requires submission of objects fainter than 16 in apparent magnitude
+# Apparently magnitude of 16 calculates to an absolute magnitude of 
+# M= m- 5 log10 (d) + 5
+
+# Absolute magnitude limits
+MAG_MIN = 16
+MAG_MAX = 19
 
 # Desired final count
 TARGET_COUNT = 6
@@ -68,23 +72,23 @@ def horizon_alt(az):
 # MPCORB HANDLING
 # ============================================================
 
-MPCORB_URL = "https://minorplanetcenter.net/iau/MPCORB/MPCORB.DAT.gz"
-MPCORB_FILE = "MPCORB.DAT"
+NEO_URL = "https://www.minorplanetcenter.net/iau/MPCORB/NEA.txt"
+NEO_FILE = "NEA.txt"
 
 def ensure_mpcorb():
-    if os.path.exists(MPCORB_FILE):
+    if os.path.exists(NEO_FILE):
         return
 
-    print("Downloading MPCORB.DAT...")
-    r = requests.get(MPCORB_URL, stream=True)
-    with open("MPCORB.DAT.gz", "wb") as f:
+    print("Downloading NEA.txt...")
+    r = requests.get(NEO_URL, stream=True)
+    with open("NEA.txt", "wb") as f:
         f.write(r.content)
 
-    with gzip.open("MPCORB.DAT.gz", "rb") as f_in:
-        with open(MPCORB_FILE, "wb") as f_out:
-            f_out.write(f_in.read())
+    #with gzip.open("NEA.txt.gz", "rb") as f_in:
+    #    with open(NEO_FILE, "wb") as f_out:
+    #        f_out.write(f_in.read())
 
-    os.remove("MPCORB.DAT.gz")
+    #os.remove("MPCORB.tar.gz")
 
 # ============================================================
 # Helper Functions
@@ -137,16 +141,16 @@ def load_candidate_numbers():
     print("Parsing MPCORB...")
     candidates = []
 
-    with open(MPCORB_FILE) as f:
+    with open(NEO_FILE) as f:
         for line in f:
             if line.startswith("#"):
                 continue
 
             try:
                 num = int(line[0:7])
-                H   = float(line[8:13])
-                a   = float(line[92:103])   # semi-major axis
-                e   = float(line[70:79])    # eccentricity
+                aM   = float(line[8:13])
+                #a   = float(line[92:103])   # semi-major axis
+                #e   = float(line[70:79])    # eccentricity
 
                 name = line[166:194].strip()
                 if not name:
@@ -156,21 +160,14 @@ def load_candidate_numbers():
 
             # Store name lookup
             ASTEROID_NAMES[num] = name
+            candidates.append(num)
 
-            # Main-belt filter
-            if not (2.0 < a < 3.5 and e < 0.35):
-                continue
-
-            # Absolute magnitude pre-filter
-            if 12.0 <= H <= 15.2:
-                candidates.append(num)
-
-    print(f"Candidate MBAs after MPCORB filter: {len(candidates)}")
+    print(f"Candidate MBAs after MAG filter: {len(candidates)}")
     return candidates
 
 
 # ============================================================
-# STAGE 2: QUERY SINGLE ASTEROID
+# STAGE 3.1: QUERY SINGLE ASTEROID
 # ============================================================
 
 def query_single_asteroid(num):
@@ -196,6 +193,7 @@ def query_single_asteroid(num):
                 passes = False
                 break
             
+            # Check asteroid is visible above horizon at observation time
             if alt < horizon_alt(az):
                 passes = False
                 break
@@ -226,7 +224,7 @@ def query_single_asteroid(num):
 
 def batch_query_horizons(asteroid_numbers):
     """Query multiple asteroids in parallel."""
-    
+
     results = {}
     
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -240,7 +238,7 @@ def batch_query_horizons(asteroid_numbers):
                 if result:
                     asteroid_num, nightly = result
                     results[asteroid_num] = nightly
-                    print(f"✔ {asteroid_num} passes")
+                    print(f"{asteroid_num} passes")
             except Exception as e:
                 print(f"✗ {num} failed: {e}")
     
@@ -254,6 +252,8 @@ def batch_query_horizons(asteroid_numbers):
 def main():
     ensure_mpcorb()
     candidates = load_candidate_numbers()
+
+    print(f"Candidates is {len(candidates)}")
     
     all_results = {}
     
@@ -271,11 +271,11 @@ def main():
         
         # Stop if we have enough
         if len(all_results) >= TARGET_COUNT:
-            print(f"✓ Reached target count of {TARGET_COUNT}")
+            print(f"Reached target count of {TARGET_COUNT}")
             break
     
     if len(all_results) < TARGET_COUNT:
-        print(f"\n⚠ Only found {len(all_results)} objects after checking {batch_end} candidates.")
+        print(f"\nOnly found {len(all_results)} objects after checking {batch_end} candidates.")
         print("Consider adjusting magnitude/H limits or increasing search range.")
     
     # Take top N results
