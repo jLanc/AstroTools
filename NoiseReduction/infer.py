@@ -6,9 +6,10 @@ Uses tiled inference with Gaussian-weighted overlap to avoid tile-boundary artef
 — essential for large astrophotography images (e.g. 6248×4176 from ASI2600MC Pro).
 
 Usage:
-    python infer.py --model ./models/best_model.pt --input ./my_sub.xisf --output ./denoised.xisf
+    python infer.py --model ./models/best_model.pt --input ./my_image.xisf --output ./denoised.xisf
 
 Input must be a calibrated, linear (un-stretched) image.
+It can be a single noisy sub or an already-integrated master frame.
 The output is a linear XISF file — do NOT stretch before passing in.
 Stretch the denoised output in PixInsight as you normally would.
 """

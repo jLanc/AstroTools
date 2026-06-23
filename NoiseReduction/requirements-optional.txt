@@ -1,0 +1,4 @@
+# Optional XISF support for PixInsight-native files.
+# Install only if you need XISF read/write support.
+# If you do not need XISF, use FITS via astropy instead.
+xisf>=0.9.0

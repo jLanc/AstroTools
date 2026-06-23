@@ -260,7 +260,8 @@ class AstroDataset(Dataset):
         if not self.pairs:
             raise FileNotFoundError(
                 f"No (sub, stack) pairs found under {data_root}. "
-                "Expected structure: target_name/subs/*.fits and target_name/stack/master_stack.fits"
+                "Expected structure: target_name/subs/*.xisf|.fits and target_name/master/master_stack.xisf|.fits "
+                "(or the legacy target_name/stack/ folder)."
             )
         print(f"Dataset: {len(self.pairs)} sub-stack pairs from {data_root}")
 
@@ -270,18 +271,21 @@ class AstroDataset(Dataset):
             if not target_dir.is_dir():
                 continue
             subs_dir = target_dir / 'subs'
+            master_dir = target_dir / 'master'
             stack_dir = target_dir / 'stack'
-            if not subs_dir.exists() or not stack_dir.exists():
+            if not subs_dir.exists() or (not master_dir.exists() and not stack_dir.exists()):
                 continue
+
+            image_dir = master_dir if master_dir.exists() else stack_dir
 
             # Find master stack — prefer XISF, fall back to FITS
             stack_files = (
-                sorted(stack_dir.glob('*.xisf')) +
-                sorted(stack_dir.glob('*.fits')) +
-                sorted(stack_dir.glob('*.fit'))
+                sorted(image_dir.glob('*.xisf')) +
+                sorted(image_dir.glob('*.fits')) +
+                sorted(image_dir.glob('*.fit'))
             )
             if not stack_files:
-                print(f"  [WARN] No stack image found in {stack_dir}, skipping.")
+                print(f"  [WARN] No stack/master image found in {image_dir}, skipping.")
                 continue
             master_stack = stack_files[0]
 

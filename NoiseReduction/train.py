@@ -8,7 +8,7 @@ Recommended workflow:
     1. Organise your data (see dataset.py for structure)
     2. Run train.py — it checkpoints every N epochs and saves the best model
     3. Monitor the loss curves printed to console
-    4. Run infer.py on new subs using the saved model
+    4. Run infer.py on new subs or an already-stacked master frame using the saved model
 
 Hardware:
     - NVIDIA GPU strongly recommended (CUDA). A 4GB GPU can handle patch_size=128.

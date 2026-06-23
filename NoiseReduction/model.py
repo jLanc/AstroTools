@@ -77,7 +77,7 @@ class AstroDeNoiseNet(nn.Module):
     """
     U-Net for noise reduction in linear astrophotography.
 
-    Input:  (B, C, H, W) — linear normalised single sub, float32 [0, 1]
+    Input:  (B, C, H, W) — linear normalised image, float32 [0, 1]
     Output: (B, C, H, W) — denoised linear image, float32 [0, 1]
 
     Args:

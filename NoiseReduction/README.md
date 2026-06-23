@@ -1,7 +1,8 @@
 # AstroEnhance — AI Noise Reduction for Linear Astrophotography
 
-A PyTorch-based U-Net that learns to remove noise from single linear subs,
-trained on your own data from the ASI2600MC Pro and ASI294MC Pro.
+A PyTorch-based U-Net trained on calibrated sub → master stack pairs. The model
+learns your camera's noise profile and can denoise either new subs before
+integration or an already-stacked master frame.
 
 ---
 
@@ -9,13 +10,15 @@ trained on your own data from the ASI2600MC Pro and ASI294MC Pro.
 
 The model is trained on pairs of images from the same dataset:
 
-- **Input:** a single calibrated sub — high noise, low SNR
-- **Target:** the master integration of all subs — low noise, high SNR
+- **Input:** a calibrated, linear noisy sub
+- **Target:** the master integration of all subs — the final clean stack
 
-A stack of N subs has √N better SNR than a single sub because noise is random
-and averages toward zero across frames, while real signal accumulates coherently.
-The model learns to recognise and remove the noise patterns specific to your
-cameras and sky conditions, leaving the underlying signal intact.
+This trains the network to predict a clean linear image suitable for stretch
+later, while preserving real signal and removing read noise, shot noise and
+thermal patterns.
+
+Once trained, the model can be applied to new noisy subs before stacking or
+run directly on an already-integrated master frame for additional cleanup.
 
 **Why this is better than a generic noise reduction tool:**
 Most denoising algorithms (median filter, wavelets, etc.) don't know what noise
@@ -35,12 +38,12 @@ profile, thermal pattern, and sky background characteristics of your equipment.
 ## Project structure
 
 ```
-astro_enhance/
+NoiseReduction/
 ├── model.py          # U-Net architecture with residual blocks and dropout
 ├── dataset.py        # XISF/FITS loading, normalisation, patch extraction
 ├── train.py          # Training loop with noise-reduction loss function
 ├── infer.py          # Tiled inference for full-resolution images
-├── AstroEnhance.js   # PixInsight PJSR plugin bridge
+├── AstroDenoise.js   # PixInsight PJSR plugin bridge
 ├── requirements.txt  # Python dependencies
 └── README.md         # This file
 ```
@@ -51,28 +54,77 @@ astro_enhance/
 
 ### 1. Python environment
 
+Use a virtual environment for the project.
+
+macOS / Linux:
 ```bash
-# Create a virtual environment
-python3 -m venv astro_env
-source astro_env/bin/activate       # macOS / Linux
-# astro_env\Scripts\activate        # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Apple Silicon (M1/M2/M3) — MPS GPU acceleration, no extra steps needed
-# NVIDIA GPU — replace the torch line in requirements.txt with:
-pip install torch --index-url https://download.pytorch.org/whl/cu121
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-Verify your accelerator is available:
-```python
-import torch
-print(torch.backends.mps.is_available())   # Apple Silicon
-print(torch.cuda.is_available())           # NVIDIA
+Windows PowerShell:
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-### 2. PixInsight plugin
+Windows Git Bash:
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+```
+
+Install the core dependencies:
+```bash
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+```
+
+For Windows with NVIDIA CUDA 12.1, run:
+```bash
+python -m pip install -r requirements-windows-cuda.txt
+```
+
+If you need PixInsight XISF support, install the optional package:
+```bash
+python -m pip install -r requirements-optional.txt
+```
+
+If `xisf` is unavailable for your Python/OS, use FITS files instead; `astropy` is already included.
+
+### Supported Python versions
+
+- macOS / Linux: Python 3.10–3.14
+- Windows CUDA: Python 3.11 or 3.12 (recommended)
+
+### Notes for Windows
+
+- Do not use Python 3.14 with CUDA 12.1 wheels on Windows.
+- In Git Bash, use `source .venv/Scripts/activate` instead of PowerShell activation commands.
+- The GPU CUDA install path only affects `torch` / `torchvision` / `torchaudio`.
+
+### Conda alternative
+
+```bash
+conda create -n astrodenoise python=3.11 -y
+conda activate astrodenoise
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+```
+
+### PixInsight plugin
+
+Edit the path variables at the top of `AstroDenoise.js`:
+```javascript
+var PYTHON_PATH   = "/path/to/.venv/Scripts/python.exe";
+var INFER_SCRIPT  = "/path/to/NoiseReduction/infer.py";
+var DEFAULT_MODEL = "/path/to/models/best_model.pt";
+```
+
+Then add the script in PixInsight: **Script → Feature Scripts → Add**.
+
+---
+
+## Preparing your data
 
 Edit the three path variables at the top of `AstroEnhance.js`:
 ```javascript
@@ -96,11 +148,11 @@ data/
 │   │   ├── Light_001.xisf
 │   │   ├── Light_002.xisf
 │   │   └── ...              ← calibrated, registered subs
-│   └── stack/
+│   └── master/
 │       └── master.xisf      ← your full integration of all subs
 ├── orion/
 │   ├── subs/
-│   └── stack/
+│   └── master/
 └── ...                      ← one directory per target
 ```
 
@@ -217,27 +269,28 @@ If it plateaus early, try a lower learning rate (`--lr 0.00005`).
 ```bash
 python infer.py \
     --model     ./models/best_model.pt \
-    --input     ./linear_sub.xisf \
-    --output    ./denoised_sub.xisf \
+    --input     ./linear_image.xisf \
+    --output    ./denoised_image.xisf \
     --tile_size 512 \
     --overlap   128 \
     --device    mps
 ```
 
-The output is a linear XISF file. Stretch it in PixInsight exactly as you
-would the original sub or stack.
+The input can be a calibrated noisy sub or an already-integrated master frame.
+The output is a linear XISF file. Stretch the denoised result in PixInsight
+only after processing.
 
 ### From PixInsight
 
-1. Open your **linear** XISF image (do NOT apply STF or any stretch first)
+1. Open a linear XISF image (do NOT apply STF or any stretch first)
 2. Run **Script → AstroEnhance → AstroEnhance**
 3. Select your `best_model.pt` file
 4. Click "Enhance"
 5. The denoised image opens as `ImageName_AstroEnhanced`
 
-The plugin checks the image median before processing and will warn you if
-the image appears to be stretched (median > 0.1). Linear calibrated data
-typically has a median well below 0.05.
+The plugin checks the image median before processing and will warn you if the
+image appears to be stretched (median > 0.1). Linear calibrated data typically
+has a median well below 0.05.
 
 ### Recommended workflow
 
@@ -254,10 +307,10 @@ Denoised linear subs  ──►  ImageIntegration (stack as normal)
 Denoised stack  ──►  Stretch in PixInsight
 ```
 
-Denoising before stacking means each sub contributing to the integration
-is already cleaner, which reduces the number of subs needed to reach a
-given SNR target. You can also run inference directly on an already-stacked
-image to clean up any residual noise in the final integration.
+For the best integration results, train the model with noisy subs and the
+master stack as the target. During inference you may denoise new subs before
+stacking or run the same trained model on a stacked master frame to clean up
+residual noise in the final integration.
 
 ---
 
